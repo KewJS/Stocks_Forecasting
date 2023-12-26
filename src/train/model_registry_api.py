@@ -9,12 +9,11 @@ from src.base.logger import get_console_logger
 logger = get_console_logger()
 
 
-def load_production_model_from_registry(
-    workspace: str,
-    api_key: str,
-    model_name: str,
-    status: str="Production"
-) -> Pipeline:
+def load_production_model_from_registry(workspace: str,
+                                        api_key: str,
+                                        model_name: str,
+                                        status: str="Production"
+                                        ) -> Pipeline:
     """Loads the production model from the remote model registry
 
     Args:

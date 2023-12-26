@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 from typing import Dict, Tuple, Callable, Union
 
 import optuna
+from xgboost import XGBRegressor
 from lightgbm import LGBMRegressor
 from sklearn.linear_model import Lasso
 from sklearn.pipeline import make_pipeline
@@ -24,7 +25,7 @@ logger = get_console_logger()
 
 
 def sample_hyperparam(model_fn: Callable,
-                      trial: optuna.trial.Trial,
+                      trial: optuna.trial.Trial, 
                       ) -> Dict[str, Union[str, int, float]]:
     """Create the sample hyperparameters space for the model
 
@@ -41,6 +42,18 @@ def sample_hyperparam(model_fn: Callable,
     if model_fn == Lasso:
         return {
             "alpha": trial.suggest_float("alpha", 0.01, 1.0, log=True)
+        }
+    elif model_fn == XGBRegressor:
+        return {
+            "objective": "reg:squarederror",
+            "verbosity": 0,
+            "max_leaves": trial.suggest_int("num_leaves", 2, 256),
+            "eta": trial.suggest_float("feature_fraction", 0.2, 1.0),
+            "gamma": trial.suggest_float("bagging_fraction", 0.2, 1.0),
+            "max_depth": trial.suggest_int("max_depth", 3, 50),
+            "subsample": trial.suggest_float("subsample", 0.2, 1.0),
+            "lambda": trial.suggest_int("min_child_samples", 1, 100),
+            "alpha": trial.suggest_int("min_child_samples", 1, 100),
         }
     elif model_fn == LGBMRegressor:
         return {
@@ -61,7 +74,7 @@ def find_best_hyperparams(model_fn: Callable,
                           y: pd.Series,
                           experiment: Experiment,
                           ) -> Tuple[Dict, Dict]:
-    assert model_fn in {Lasso, LGBMRegressor}
+    assert model_fn in {Lasso, XGBRegressor, LGBMRegressor}
     
     def objective(trial: optuna.trial.Trial) -> float:
         """Error function we want to minimize (or maximize) using hyperparameter tuning.
@@ -88,11 +101,11 @@ def find_best_hyperparams(model_fn: Callable,
             logger.info(f"{len(X_train)=}")
             logger.info(f"{len(X_val)=}")
             
-            pipeline = get_preprocessing_pipeline(
-                **preprocessing_hyperparams,
+            pipeline = make_pipeline(
+                get_preprocessing_pipeline(**preprocessing_hyperparams),
                 model_fn(**model_hyperparams)
-                )
-            pipeline.fit(X_train, y_train)
+            )
+            pipeline.fit(X_train, y_train)  
             
             y_pred = pipeline.predict(X_val)
             mae = mean_absolute_error(y_val, y_pred)

@@ -1,9 +1,11 @@
+import sys
+sys.path.append(r"../")
+
 import os
 import pickle
 import numpy as np
 import pandas as pd
-from datetime import datetime
-from copy import deepcopy as dc
+from pathlib import Path
 from argparse import ArgumentParser
 from typing import Dict, Union, Optional, Callable
 
@@ -70,7 +72,7 @@ def train(x: pd.DataFrame,
     )
     experiment.add_tag(model)
     
-    train_sample_size = int(0.9 * len(x))
+    train_sample_size = int(Config.MODELLING_CONFIG["SPLIT_RATIO"] * len(x))
     X_train, X_test = x[:train_sample_size], x[train_sample_size:]
     y_train, y_test = y[:train_sample_size], y[train_sample_size:]
     logger.info("Train sample size: {}".format(len(X_train)))
@@ -100,19 +102,28 @@ def train(x: pd.DataFrame,
     logger.info("Fitting model with default hyperparameters")
     pipeline.fit(X_train, y_train)
     
-    predictions = pipeline.predict(X_test)
-    test_error = mean_absolute_error(y_test, predictions)
+    train_pred = pipeline.predict(X_train)
+    train_error = mean_absolute_error(y_train, train_pred)
+    logger.info("Train MAE: {}".format(train_error))
+    experiment.log_metrics({"Train MAE": train_error})
+    
+    test_pred = pipeline.predict(X_test)
+    test_error = mean_absolute_error(y_test, test_pred)
     logger.info("Test MAE: {}".format(test_error))
     experiment.log_metrics({"Test MAE": test_error})
     
+    if not Path(os.path.join(Config.FILES["MODELS_DIR"], "stocks")).exists():
+        logger.info("Create models directory for 'stocks'")
+        Path(os.path.join(Config.FILES["MODELS_DIR"], "stocks")).mkdir(parents=True)
+    
     logger.info("Saving model to disk")
-    with open(os.path.join(Config.FILES["MODELS_DIR"], "model.pkl"), "wb") as f:
+    with open(os.path.join(Config.FILES["MODELS_DIR"], "stocks", "{}_model.pkl".format(model)), "wb") as f:
         pickle.dump(pipeline, f)
         
-    experiment.log_model(str(model_fn), str(Config.FILES["MODELS_DIR"], "model.pkl"))
+    experiment.log_model(str(model_fn), str(os.path.join(Config.FILES["MODELS_DIR"], "stocks", "{}_model.pkl".format(model))))
     
     
-if __name__ = "__main__":
+if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("--model", type=str, default="lasso", help="Model name")
     parser.add_argument("--tune-hyperparam", action="store_true", help="Whether to tune hyperparameters")

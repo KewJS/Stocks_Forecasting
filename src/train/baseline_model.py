@@ -1,9 +1,10 @@
+import sys
+sys.path.append(r"../")
+
 import os
 import pandas as pd
 from comet_ml import Experiment
 from sklearn.metrics import mean_absolute_error
-from sklearn.linear_model import Lasso
-from typing import Dict, Union, Optional, Callable
 
 from src.config import Config
 from src.base.logger import get_console_logger
@@ -37,9 +38,9 @@ def train(X: pd.DataFrame, y: pd.Series) -> None:
     """
     logger.info("building baseline model by comparing the price with 1 hour lag")
     experiment = Experiment(
-        api_key = os.environ["COMET_ML_API_KEY"],
-        workspace = os.eviron["COMET_ML_WORKSPACE"],
-        project_name = "prediction-of-cryptocurrency-prices",
+        api_key=os.environ["COMET_ML_API_KEY"],
+        workspace=os.environ["COMET_ML_WORKSPACE"],
+        project_name=os.environ["COMET_ML_PROJECT_NAME"],
     )
     experiment.add_tag("baseline_model")
     

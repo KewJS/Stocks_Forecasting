@@ -46,7 +46,6 @@ def transform_ts_data_into_features_and_target(
     features = pd.DataFrame()
     targets = pd.DataFrame()
     
-    logger.info("pre-compute cutoff indices to split dataframe rows")
     indices = get_cut_off_indices_features_and_target(ts_data, input_seq_len, step_size)
     
     n_examples = len(indices)
@@ -181,12 +180,10 @@ def get_subset_of_features(X: pd.DataFrame) -> pd.DataFrame:
 
 def get_preprocessing_pipeline(pp_rsi_window: int=14) -> Pipeline:
     return make_pipeline(
+        RSI(window=pp_rsi_window),
         FunctionTransformer(get_price_percentage_return, kw_args={"hours": 2}),
         FunctionTransformer(get_price_percentage_return, kw_args={"hours": 12}),
         FunctionTransformer(get_price_percentage_return, kw_args={"hours": 24}),
-        
-        RSI(window=pp_rsi_window),
-        
         FunctionTransformer(get_subset_of_features)
     )
     
@@ -196,7 +193,7 @@ if __name__ == "__main__":
     
     preprocessing_pipeline = get_preprocessing_pipeline()
     
-    preprocessing_pipeline.fit(features)
+    # preprocessing_pipeline.fit(features)
     X = preprocessing_pipeline.transform(features)
     
     X.to_parquet(os.path.join(Config.FILES["PREPROCESS_DATA"], "stocks", "features.parquet"), index=False)
