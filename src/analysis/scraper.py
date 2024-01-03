@@ -12,7 +12,7 @@ from typing import Optional
 from src.config import Config
 from src.base.logger import get_console_logger
 
-logger = get_console_logger()
+logger = get_console_logger("dataset_generation")
 
 class Logger(object):
     info     = print
@@ -162,11 +162,3 @@ class Scraper(Config):
         self.logger.info("Successfully retrieved stock data for {} - {}".format(ticker, df.shape[0]))
         
         return df_preprocess
-
-
-if __name__== "__main__":
-    scraper = Scraper(product_id = Config.SCRAPER_CONFIG["CRYPTO_PRODUCT_ID"],
-                      from_day = Config.SCRAPER_CONFIG["CRYPTO_FROM_DAY"],
-                      to_day = Config.SCRAPER_CONFIG["CRYPTO_TO_DAY"],
-                      )
-    fire.Fire(scraper.download_ohlc_data_from_coinbase())

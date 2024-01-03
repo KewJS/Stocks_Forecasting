@@ -3,6 +3,7 @@ sys.path.append(r"../")
 
 import os
 import pandas as pd
+from dotenv import load_dotenv
 from comet_ml import Experiment
 from sklearn.metrics import mean_absolute_error
 
@@ -10,6 +11,7 @@ from src.config import Config
 from src.base.logger import get_console_logger
 from src.analysis.preprocessing import transform_ts_data_into_features_and_target
 
+load_dotenv()
 logger = get_console_logger()
 
 
@@ -38,13 +40,13 @@ def train(X: pd.DataFrame, y: pd.Series) -> None:
     """
     logger.info("building baseline model by comparing the price with 1 hour lag")
     experiment = Experiment(
-        api_key=os.environ["COMET_ML_API_KEY"],
-        workspace=os.environ["COMET_ML_WORKSPACE"],
-        project_name=os.environ["COMET_ML_PROJECT_NAME"],
+        api_key= os.getenv("COMET_ML_API_KEY"), # os.environ["COMET_ML_API_KEY"],
+        workspace= os.getenv("COMET_ML_WORKSPACE"), # os.environ["COMET_ML_WORKSPACE"],
+        project_name= os.getenv("COMET_ML_PROJECT_NAME"), # os.environ["COMET_ML_PROJECT_NAME"],
     )
     experiment.add_tag("baseline_model")
     
-    logger.ingo("splitting data into train and test sets at the ratio {}".format(Config.MODELLING_CONFIG["SPLIT_RATIO"]))
+    logger.info("splitting data into train and test sets at the ratio {}".format(Config.MODELLING_CONFIG["SPLIT_RATIO"]))
     train_sample_data = int(Config.MODELLING_CONFIG["SPLIT_RATIO"] * len(X))
     X_train, X_test = X[:train_sample_data], X[train_sample_data:]
     y_train, y_test = y[:train_sample_data], y[train_sample_data:]

@@ -6,6 +6,7 @@ import pickle
 import numpy as np
 import pandas as pd
 from pathlib import Path
+from dotenv import load_dotenv
 from argparse import ArgumentParser
 from typing import Dict, Union, Optional, Callable
 
@@ -24,6 +25,7 @@ from src.analysis.preprocessing import (
 from src.train.hyperparams import find_best_hyperparams
 from src.base.logger import get_console_logger
 
+load_dotenv()
 logger = get_console_logger()
 
 
@@ -66,9 +68,9 @@ def train(x: pd.DataFrame,
     model_fn = get_model_fn_from_name(model)
     
     experiment = Experiment(
-        api_key=os.environ["COMET_ML_API_KEY"],
-        workspace=os.environ["COMET_ML_WORKSPACE"],
-        project_name=os.environ["COMET_ML_PROJECT_NAME"],
+        api_key= os.getenv("COMET_ML_API_KEY"), # os.environ["COMET_ML_API_KEY"],
+        workspace= os.getenv("COMET_ML_WORKSPACE"), # os.environ["COMET_ML_WORKSPACE"],
+        project_name= os.getenv("COMET_ML_PROJECT_NAME"), # os.environ["COMET_ML_PROJECT_NAME"],
     )
     experiment.add_tag(model)
     
@@ -119,8 +121,9 @@ def train(x: pd.DataFrame,
     logger.info("Saving model to disk")
     with open(os.path.join(Config.FILES["MODELS_DIR"], "stocks", "{}_model.pkl".format(model)), "wb") as f:
         pickle.dump(pipeline, f)
-        
+    
     experiment.log_model(str(model_fn), str(os.path.join(Config.FILES["MODELS_DIR"], "stocks", "{}_model.pkl".format(model))))
+    experiment.register_model(str(model_fn))
     
     
 if __name__ == "__main__":

@@ -1,6 +1,6 @@
 import os
 import pickle
-from comet_ml import API
+from comet_ml.api import API
 from sklearn.pipeline import Pipeline
 
 from src.config import Config
@@ -25,9 +25,9 @@ def load_production_model_from_registry(workspace: str,
     Returns:
         Pipeline: _description_
     """
-    api = API(api_key)
-    model_details = api.add_registry_model_details(workspace, model_name)["versions"]
-    model_versions = [md["version"] for md in model_details if md["status"] == status]
+    api = API(api_key=api_key)
+    model_details = api.get_registry_model_details(workspace, model_name)["versions"]
+    model_versions = [md["version"] for md in model_details if md["status"].lower() == status]
     
     if len(model_details) == 0:
         logger.error(f"No production model found with name: {model_name}")
@@ -36,15 +36,24 @@ def load_production_model_from_registry(workspace: str,
         logger.info(f"Found {status} model versions: {model_versions}")
         model_version = model_versions[0]
         
-    api.donwload_registry_model(
+    api.download_registry_model(
         workspace, 
         registry_name=model_name, 
         version=model_version,
-        output_path="./",
+        output_path=os.path.join(Config.FILES["MODELS_DIR"], "stocks"),
         expand=True
         )
     
-    with open(os.path.join(Config.FILES["MODELS_DIR"], "model.pkl"), "rb") as f:
+    if "lgb" in model_name:
+        model_substr = "lightgbm"
+    elif "xgb" in model_name:
+        model_substr = "xgboost"
+    elif "lasso" in model_name:
+        model_substr = "lasso"
+    else:
+        raise ValueError(f"Unknown model name: {model_substr}")
+    
+    with open(os.path.join(Config.FILES["MODELS_DIR"], "stocks", "{}_model.pkl".format(model_substr)), "rb") as f:
         model = pickle.load(f)
         
     return model
