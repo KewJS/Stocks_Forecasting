@@ -1,12 +1,9 @@
 import os
-import fire
 import requests
-import numpy as np
 import pandas as pd
-from ftplib import FTP
+import yfinance as yf
 from pathlib import Path
 from datetime import datetime, timedelta
-from pvlib.iotools import read_surfrad
 from typing import Optional
 
 from src.config import Config
@@ -29,18 +26,17 @@ class Scraper(Config):
     def download_ohlc_data_from_coinbase(
         self,
         product_id: Optional[str] = Config.SCRAPER_CONFIG["CRYPTO_PRODUCT_ID"],
-        from_day: Optional[str] = Config.SCRAPER_CONFIG["CRYPTO_FROM_DAY"],
-        to_day: Optional[str] = Config.SCRAPER_CONFIG["CRYPTO_TO_DAY"],
         ):
         """Downloads historical candles from Coinbase API and saves data to disk
         Reference: https://docs.cloud.coinbase.com/exchange/reference/exchangerestapi_getproductcandles
 
         Args:
             product_id (Optional[str], optional): _description_. Defaults to Config.SCRAPER_CONFIG["CRYPTO_PRODUCT_ID"].
-            from_day (Optional[str], optional): _description_. Defaults to Config.SCRAPER_CONFIG["CRYPTO_FROM_DAY"].
-            to_day (Optional[str], optional): _description_. Defaults to Config.SCRAPER_CONFIG["CRYPTO_TO_DAY"].
         """
-        days = pd.date_range(start=from_day, end=to_day, freq="1D")
+        end = self.SCRAPER_CONFIG["END_DATE"]
+        start = datetime(end.year-self.SCRAPER_CONFIG["START_DATE_DIFF"], end.month, end.day)
+
+        days = pd.date_range(start=start, end=end, freq="1D")
         days = [day.strftime("%Y-%m-%d") for day in days]
 
         data = pd.DataFrame()
@@ -85,42 +81,44 @@ class Scraper(Config):
         data = r.json()
         
         return pd.DataFrame(data, columns=["time", "low", "high", "open", "close", "volume"])
-        
-        
-    def noaa_scraper(self):
-        """Downloads data from NOAA FTP server and saves data to data/preprocess_data
-        """
-        for year in self.ANALYSIS_CONFIG["YEAR_LIST"]:
-            for location in self.ANALYSIS_CONFIG["LOCATION_LIST"]:
-                source = f"data/radiation/surfrad/{location}/{year}"
-                destination = os.path.join(self.FILES["RAW_DATA"], "radiation", location, year)
-                if not os.path.exists(destination):
-                    os.makedirs(destination)
-
-                start = datetime.now()
-                ftp = FTP("ftp.gml.noaa.gov")
-                ftp.login()
-                ftp.cwd(source)
-                # ftp.retrlines("LIST") Enable to view what is inside the server
-
-                ftp.nlst()
-                files = ftp.nlst()
-                self.logger.info("Downloading datasets from {} at {}...".format(location, year))
-                for file in files:
-                    self.logger.info("Downloading..." + file)
-                    ftp.retrbinary(f"RETR {file}", open(os.path.join(destination, file), "wb").write)
-
-                ftp.close()
-                self.logger.info("\nftp connection is now closed")
-
-                end = datetime.now()
-                diff = end - start
-                self.logger.info("\nAll files download for " + str(diff.seconds) + "s")
                 
     
-    def get_stock_data(self,
-                       ticker: str=Config.SCRAPER_CONFIG["STOCK_TICKER"], 
-                       api_token: str=Config.SCRAPER_CONFIG["ALPHA_VANTAGE_API"]) -> pd.DataFrame:
+    def get_klse_stock_data(self,
+                            company_list: list[str],
+                            company_name: list[str],
+                            ) -> pd.DataFrame:
+        """Acquire stock data from KLSE market
+
+        Args:
+            company_list (list[str]): List of company stock ticker
+            company_name (list[str]): List of company stock name
+
+        Returns:
+            pd.DataFrame: KLSE stocks dataframe
+        """
+        if company_list is None and company_name is None:
+            company_list = self.SCRAPER_CONFIG["KLSE_COMPANY_LIST"]
+            company_name = self.SCRAPER_CONFIG["KLSE_COMPANY_NAME"]
+            
+        end = self.SCRAPER_CONFIG["END_DATE"]
+        start = datetime(end.year-self.SCRAPER_CONFIG["START_DATE_DIFF"], end.month, end.day)
+            
+        data = {company: yf.download(company, start, end) for company in company_list}
+        for com_ticker, com_name in zip(company_list, company_name):
+            data[com_ticker]["Symbol"] = com_ticker
+            data[com_ticker]["Name"] = com_name
+            data[com_ticker] = data[com_ticker].reset_index()
+
+        df_klse = pd.concat(data.values(), ignore_index=True)
+        df_klse.columns = [col.lower().replace(" ", "_") for col in df_klse.columns]
+
+        return df_klse
+                
+    
+    def get_global_stock_data(self,
+                              ticker: str, 
+                              api_token: str=Config.SCRAPER_CONFIG["ALPHA_VANTAGE_API"]
+                              ) -> pd.DataFrame:
         """
         Get historical stock data from www.alphavantage.com
         

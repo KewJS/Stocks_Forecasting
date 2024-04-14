@@ -1,6 +1,5 @@
 # working files
-notebooks/Logic.ipynb
-notebooks/10_time_series_forecasting_in_tensorflow.ipynb
+experiment/
 
 # working directory
 data/

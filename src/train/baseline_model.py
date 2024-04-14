@@ -6,6 +6,8 @@ import pandas as pd
 from dotenv import load_dotenv
 from comet_ml import Experiment
 from sklearn.metrics import mean_absolute_error
+from sklearn.linear_model import LinearRegression
+from sklearn.model_selection import TimeSeriesSplit
 
 from src.config import Config
 from src.base.logger import get_console_logger
@@ -13,6 +15,27 @@ from src.analysis.preprocessing import transform_ts_data_into_features_and_targe
 
 load_dotenv()
 logger = get_console_logger()
+
+
+def build_baseline_model(X: pd.DataFrame, y: pd.Series):
+    X = X.dropna()
+    tscv = TimeSeriesSplit(n_splits=Config.MODELLING_CONFIG["NUMBER_OF_SPLITS"])
+    
+    for train_index, test_index in tscv.split(X):
+        X_train, X_test = X.iloc[train_index], X.iloc[test_index]
+        y_train, y_test = y.iloc[train_index], y.iloc[test_index]
+    
+        model = LinearRegression()
+        model.fit(X_train, y_train)
+        y_pred = model.predict(X_test)
+
+        result = pd.DataFrame(y_test)
+        result["prediction"] = y_pred
+        result = result.sort_index()
+        
+        metrics = Config.evaluate(y_test, y_pred)
+
+    return result, metrics
 
 
 def get_baseline_model_error(X_test: pd.DataFrame, y_test: pd.Series) -> float:

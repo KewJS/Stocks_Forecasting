@@ -1,83 +1,78 @@
 import torch
 import torch.nn as nn
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
+from src.config import Config
 
 
 class GRUModel(nn.Module):
-    """GRUModel class extends nn.Module class and works as a constuctor for GRUs.
-    
-    GRUModel class initiates a GRU module based on Pytorch's nn.Module class. It has
-    only two methods, namely init() and forward(). While the init() method intiates
-    the model with the given input parameters, the forward() method defines how the 
-    forward propagation need to be calculated. Since Pytorch automatically defined
-    back propagation, there is no need to define back propagation method.
+    """GRUModel class extends nn.Module class and works as a constructor for GRUs.
 
-    Attributes
-    ----------
-    hidden_dim : int
-        The number of nodes in each layer
-    layer_dim : int
-        The number of layers in the network
-    lstm : nn.LSTM
-        The LSTM model constructed with the input parameters.
-    fc : nn.Linear
-        The fully connected layer to convert the final state of LSTMs to our desired output shape.
+       GRUModel class initiates a GRU module based on PyTorch's nn.Module class.
+       It has only two methods, namely init() and forward(). While the init()
+       method initiates the model with the given input parameters, the forward()
+       method defines how the forward propagation needs to be calculated.
+       Since PyTorch automatically defines back propagation, there is no need
+       to define back propagation method.
+
+       Attributes:
+           hidden_dim (int): The number of nodes in each layer
+           layer_dim (str): The number of layers in the network
+           gru (nn.GRU): The GRU model constructed with the input parameters.
+           fc (nn.Linear): The fully connected layer to convert the final state
+                           of GRUs to our desired output shape.
+
     """
-    def __init__(self, input_dim, hidden_dim, output_dim, dropout_prob):
-        """Initiate GRU instance.
+    def __init__(self, 
+                 input_dim: int=Config.MODELLING_CONFIG["INPUT_DIM"], 
+                 hidden_dim: int=Config.MODELLING_CONFIG["HIDDEN_DIM"], 
+                 layer_dim: int=Config.MODELLING_CONFIG["LAYER_DIM"], 
+                 output_dim: int=Config.MODELLING_CONFIG["OUTPUT_DIM"], 
+                 dropout_prob: float=Config.MODELLING_CONFIG["DROPOUT_PROB"]):
+        """The __init__ method that initiates a GRU instance.
 
-        Parameters
-        ----------
-        input_dim : int
-            The number of nodes in the input layer
-        hidden_dim : int
-            The number of nodes in each layer
-        layer_dim : int
-            The number of layers in the network
-        output_dim : int
-            The number of nodes in output layer
-        dropout_prob : The probability of nodes being dropped out
-            The probability of nodes being dropped out
+        Args:
+            input_dim (int): The number of nodes in the input layer
+            hidden_dim (int): The number of nodes in each layer
+            layer_dim (int): The number of layers in the network
+            output_dim (int): The number of nodes in the output layer
+            dropout_prob (float): The probability of nodes being dropped out
         """
         super(GRUModel, self).__init__()
-        
-        # # defining the number of layers and the nodes in each layer
+
+        # Defining the number of layers and the nodes in each layer
         self.layer_dim = layer_dim
         self.hidden_dim = hidden_dim
-        
-        # # GRU layer
+
+        # GRU layers
         self.gru = nn.GRU(
             input_dim, hidden_dim, layer_dim, batch_first=True, dropout=dropout_prob
         )
-        
-        # # fully connected layer
+
+        # Fully connected layer
         self.fc = nn.Linear(hidden_dim, output_dim)
         
         
-    def forward(self, x:torch.Tensor) -> torch.Tensor:
+    def forward(self, x):
         """The forward method takes input tensor x and does forward propagation
 
-        Parameters
-        ----------
-        x : torch.Tensor
-            The input tensor of the shape (batch size, sequence length, input_dim)
+        Args:
+            x (torch.Tensor): The input tensor of the shape (batch size, sequence length, input_dim)
 
-        Returns
-        -------
-        torch.Tensor
-            The output tensor of the shape (batch size, output_dim)
+        Returns:
+            torch.Tensor: The output tensor of the shape (batch size, output_dim)
+
         """
-        # # initializing hidden state for first input with zeros
+        # Initializing hidden state for first input with zeros
         h0 = torch.zeros(self.layer_dim, x.size(0), self.hidden_dim, device=x.device).requires_grad_()
-        
-        # # forward propagation by passing in the input and hidden state into the model
+
+        # Forward propagation by passing in the input and hidden state into the model
         out, _ = self.gru(x, h0.detach())
-        
-        # # reshaping the outputs in the shape of (batch_size, seq_length, hidden_size)
-        # # so that it can fit into the fully connected layer
+
+        # Reshaping the outputs in the shape of (batch_size, seq_length, hidden_size)
+        # so that it can fit into the fully connected layer
         out = out[:, -1, :]
-        
-        # # convert the final state to our desired output shape (batch_size, output_dim)
+
+        # Convert the final state to our desired output shape (batch_size, output_dim)
         out = self.fc(out)
         
         return out

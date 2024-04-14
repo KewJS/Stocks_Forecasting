@@ -8,11 +8,11 @@ import pandas as pd
 from pathlib import Path
 from dotenv import load_dotenv
 from argparse import ArgumentParser
-from typing import Dict, Union, Optional, Callable
+from typing import Optional, Callable
 
 from comet_ml import Experiment
 from sklearn.linear_model import Lasso
-from sklearn.pipeline import make_pipeline, Pipeline
+from sklearn.pipeline import make_pipeline
 from sklearn.metrics import mean_absolute_error
 from xgboost import XGBRegressor
 from lightgbm import LGBMRegressor
